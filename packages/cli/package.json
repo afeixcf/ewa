@@ -1,6 +1,6 @@
 {
   "name": "ewa-cli",
-  "version": "1.0.9",
+  "version": "1.2.0",
   "description": "EWA Command line tool",
   "main": "lib/cli.js",
   "bin": {
@@ -23,9 +23,9 @@
   "license": "MIT",
   "dependencies": {
     "chalk": "^4.1.0",
-    "ewa-webpack": "^1.0.9",
+    "ewa-webpack": "^1.2.0",
     "fs-extra": "^9.0.1",
-    "glob": "^7.1.4",
+    "glob": "^7.1.7",
     "semver": "^7.3.2",
     "yargs": "^16.1.0"
   },

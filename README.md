@@ -291,12 +291,27 @@ const { createStore } = require('ewa');
 
 App({
   ...
-  globalData: createStore ({
-    a: 'old1',
-    b: {
-      c: 'old2'
+  globalData: createStore (
+    // 全局响应式对象
+    {
+      a: 'old1',
+      b: {
+        c: 'old2'
+      }
+    },
+
+    // 可以自定义注入到 Page 或 Component 中的方法和属性，也可以不设置
+    // 如果设置了自定义的方法和变量
+    // 那么实际在 Page 或 Component 中引用的时候需要相应的替换成 自定义的名称，示例如下：
+    {
+      $set: 'yourCustomSet',
+      $on: 'yourCustomOn',
+      $emit: 'yourCustomEmit',
+      $off: 'yourCustomOff',
+      $once: 'yourCustomOnce',
+      $watch: 'yourCustomWatch'
     }
-  })
+  )
 })
 
 // 2. 改变 globalData 以及全局状态更新（支持嵌套属性和数组下标修改）
@@ -418,6 +433,9 @@ module.exports = {
 
   // 是否开启缓存，默认为 true
   cache: true,
+
+  // 自定义环境变量, 默认为 ['NODE_ENV', 'EWA_ENV']
+  customEnvironments: [],
 
   // 嫌不够灵活？直接修改 webpack 配置
   webpack: function(config) {

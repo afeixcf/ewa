@@ -8,6 +8,7 @@ const WebpackBar = require('webpackbar');
 const NodeSourcePlugin = require('webpack/lib/node/NodeSourcePlugin');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const ESLintWebpackPlugin = require('eslint-webpack-plugin');
 const NodeCommonModuleTemplatePlugin = require('./plugins/NodeCommonModuleTemplatePlugin');
 const AutoCleanUnusedFilesPlugin = require('./plugins/AutoCleanUnusedFilesPlugin');
 const EnsureVendorsExistancePlugin = require('./plugins/EnsureVendorsExistancePlugin');
@@ -22,6 +23,7 @@ const ENTRY_DIR = path.join(ROOT, 'src');
 const OUTPUT_DIR = path.join(ROOT, EWA_ENV === 'weapp' ? 'dist' : `dist-${EWA_ENV}`);
 const USER_CONFIG_FILE = path.join(ROOT, 'ewa.config.js');
 const APP_JSON_FILE = path.join(ENTRY_DIR, 'app.json');
+const CUSTOM_ENVIRONMENTS = [];
 const OUTPUT_GLOBAL_OBJECT_MAP = {
   weapp: 'wx',
   swan: 'swan',
@@ -30,6 +32,13 @@ const OUTPUT_GLOBAL_OBJECT_MAP = {
   alipay: 'my',
 };
 const OUTPUT_GLOBAL_OBJECT = OUTPUT_GLOBAL_OBJECT_MAP[EWA_ENV];
+const TYPE_NAME_MAPPINGS = {
+  weapp: '微信小程序',
+  swan: '百度小程序',
+  tt: '字节小程序',
+  qq: 'QQ小程序',
+  alipay: '支付宝小程序',
+};
 
 // 默认常量
 const DEFAULT_COMMON_MODULE_NAME = 'vendors.js';
@@ -77,7 +86,8 @@ function makeConfig() {
     commonModulePattern: DEFAULT_COMMON_MODULE_PATTERN,
     aliasDirs: DEFAULT_ALIAS_DIRS,
     copyFileTypes: DEFAULT_COPY_FILE_TYPES,
-    cssParser: DEFAULT_CSS_PARSER
+    cssParser: DEFAULT_CSS_PARSER,
+    customEnvironments: CUSTOM_ENVIRONMENTS
   }, USER_CONFIG);
 
   options.simplifyPath = options.simplifyPath === true;
@@ -115,8 +125,14 @@ function makeConfig() {
 
   // 插件
   let plugins = [
-    new webpack.EnvironmentPlugin(['NODE_ENV', 'EWA_ENV']),
+    // 支持自定义环境变量的使用
+    new webpack.EnvironmentPlugin(
+      ['NODE_ENV', 'EWA_ENV'].concat(options.customEnvironments || [])
+    ),
+
+    // 进度条显示支持
     new WebpackBar(),
+
     // Mock node env
     new NodeSourcePlugin({
       console: false,
@@ -127,12 +143,20 @@ function makeConfig() {
       Buffer: true,
       setImmediate: true
     }),
+
+    // 合并文件
     new webpack.optimize.ModuleConcatenationPlugin(),
+
+    // 输出非 js 文件
     new ExtractTextPlugin({ filename: '[name]' }),
+
+    // 注入 JS 头部引用
     new NodeCommonModuleTemplatePlugin({
       commonModuleName: options.commonModuleName,
       OUTPUT_GLOBAL_OBJECT
     }),
+
+    // 拷贝 assets 文件
     new CopyWebpackPlugin({
       patterns: copyPluginPatterns
     })
@@ -175,30 +199,38 @@ function makeConfig() {
     commonModuleName: options.commonModuleName
   }));
 
+  // 开发环境下增加 eslint 检查
+  if (IS_DEV) {
+    const eslintConfigFile = path.resolve(ROOT, '.eslintrc.js');
+    const eslintWebpackConfig = {
+      context: ENTRY_DIR,
+      eslintPath: path.dirname(require.resolve('eslint/package.json')),
+      extensions: ['js', 'ts'],
+      cache: true,
+      fix: true,
+      overrideConfig: {
+        parser: path.dirname(require.resolve('@babel/eslint-parser/package.json')),
+        parserOptions: {
+          babelOptions: {
+            // 指定 babel 配置文件
+            configFile: path.resolve(__dirname, './utils/babelConfig.js')
+          }
+        }
+      }
+    };
+
+    // 如果项目根目录 eslint 配置存在，则优先使用
+    if (existsSync(eslintConfigFile)) {
+      eslintWebpackConfig.overrideConfigFile = eslintConfigFile;
+    }
+
+    plugins.push(new ESLintWebpackPlugin(eslintWebpackConfig));
+  }
+
   plugins = plugins.concat(options.plugins);
 
   // Loaders
   let rules = [];
-
-  if (IS_DEV) {
-    // 开发环境下增加 eslint 检查
-    rules.push(
-      {
-        enforce: 'pre',
-        test: /\.js$/,
-        include: utils.pathToRegExp(ENTRY_DIR),
-        use: [{
-          loader: 'eslint-loader',
-          options: {
-            cache: true,
-            fix: true,
-            eslintPath: path.dirname(require.resolve('eslint/package.json')),
-            parser: path.dirname(require.resolve('babel-eslint/package.json'))
-          }
-        }]
-      }
-    );
-  }
 
   let ruleOpts = { ...options, IS_DEV, ROOT, OUTPUT_DIR, ENTRY_DIR, EWA_ENV, GLOBAL_COMPONENTS };
   const { cssRule, cssExtensions } = require('./rules/css')(ruleOpts);
@@ -242,6 +274,11 @@ function makeConfig() {
   // 构建模式
   const mode = IS_DEV ? 'development' : 'production';
 
+  // 打印构建信息
+  utils.log(`构建类型: ${TYPE_NAME_MAPPINGS[EWA_ENV]}`);
+  utils.log(`构建目录: ${OUTPUT_DIR}`);
+
+  // Webpack 配置
   const config = {
     stats: {
       // copied from `'minimal'`
@@ -263,7 +300,11 @@ function makeConfig() {
     devtool,
     mode,
     context: __dirname,
-    entry: utils.buildDynamicEntries(ENTRY_DIR, options.simplifyPath, EWA_ENV),
+    entry: utils.buildDynamicEntries({
+      baseDir: ENTRY_DIR,
+      simplifyPath: options.simplifyPath,
+      target: EWA_ENV
+    }),
     target: 'node',
     output: {
       path: OUTPUT_DIR,
@@ -284,6 +325,14 @@ function makeConfig() {
       alias: Object.assign(aliasDirs, {
         '@': path.resolve(ROOT, 'src/')
       })
+    },
+
+    // 优化 loader 解析目录，方便用户自定义 webpack 配置
+    resolveLoader: {
+      modules: [
+        'node_modules',
+        path.resolve(ROOT, './node_modules')
+      ]
     }
   };
 

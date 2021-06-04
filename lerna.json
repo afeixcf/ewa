@@ -1,7 +1,28 @@
 {
-  "lerna": "2.11.0",
   "packages": [
     "packages/*"
   ],
-  "version": "1.0.9"
+  "command": {
+    "create": {
+      "homepage": "https://github.com/lyfeyaj/ewa",
+      "license": "MIT"
+    },
+    "version": {
+      "conventionalCommits": true,
+      "exact": true,
+      "message": "chore(release): %s",
+      "createRelease": "github"
+    },
+    "publish": {
+      "npmClient": "npm",
+      "allowBranch": [
+        "master"
+      ],
+      "registry": "https://registry.npmjs.org/"
+    }
+  },
+  "ignoreChanges": [
+    "**/*.md"
+  ],
+  "version": "1.2.0"
 }

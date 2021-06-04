@@ -1,9 +1,24 @@
 {
+  "root": true,
   "extends": "airbnb-base",
-  "parser": "babel-eslint",
+  "parser": "@babel/eslint-parser",
   "parserOptions": {
     "ecmaVersion": 6,
-    "sourceType": "module"
+    "sourceType": "module",
+    "requireConfigFile": false
+  },
+  "globals": {
+    "wx": true,
+    "qq": true,
+    "tt": true,
+    "swan": true,
+    "my": true,
+    "App": true,
+    "Page": true,
+    "getApp": true,
+    "Component": true,
+    "WeixinJSBridge": true,
+    "getCurrentPages": true
   },
   "env": {
     "es6": true,
@@ -43,7 +58,12 @@
     "no-prototype-builtins": 0,
     "no-useless-escape": 0,
     "class-methods-use-this": "off",
-    "no-use-before-define": ["error", { "functions": false, "classes": true }],
-    "no-console": ["warn", { "allow": ["warn", "error"] }]
+    "no-use-before-define": ["error", {
+      "functions": false,
+      "classes": true
+    }],
+    "no-console": ["warn", {
+      "allow": ["warn", "error"]
+    }]
   }
 }
